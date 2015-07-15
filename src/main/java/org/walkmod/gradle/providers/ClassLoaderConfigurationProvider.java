@@ -126,9 +126,7 @@ public class ClassLoaderConfigurationProvider implements ConfigurationProvider {
 			File[] files = classesDir.listFiles();
 			if (files != null) {
 				for (File file : files) {
-					if (!file.equals("tmp") && !file.equals("dependency-cache")) {
-						classPathFiles.add(file);
-					}
+					classPathFiles.add(file);
 				}
 			}
 
