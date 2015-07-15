@@ -122,11 +122,13 @@ public class ClassLoaderConfigurationProvider implements ConfigurationProvider {
 			File gradleBuildDir = project.getGradleProject()
 					.getBuildDirectory();
 			File classesDir = new File(gradleBuildDir, buildDir);
-			
+
 			File[] files = classesDir.listFiles();
-			if(files != null){
-				for(File file: files){
-					classPathFiles.add(file);
+			if (files != null) {
+				for (File file : files) {
+					if (!file.equals("tmp") && !file.equals("dependency-cache")) {
+						classPathFiles.add(file);
+					}
 				}
 			}
 
