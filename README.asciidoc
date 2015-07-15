@@ -13,9 +13,6 @@ This plugin will interpret your classpath accoding your `build.gradle` and will 
 
 . Add other Walkmod plugins and your transformations that depend on having the classpath resolved. 
 
-. Add the transformations `walkmod:commons:unused-declarations-cleaner` into your  `walkmod.xml` and 
-set your refactoring configurations.
-
 ```XML
 <!DOCTYPE walkmod PUBLIC "-//WALKMOD//DTD"  "http://www.walkmod.com/dtd/walkmod-1.0.dtd" >
 <walkmod>
@@ -23,7 +20,7 @@ set your refactoring configurations.
     <plugin groupId="org.walkmod" artifactId="walkmod-gradle-plugin" version="[1.0,)" />
   </plugins>
   <conf-providers>
-    <conf-provider type="walkmod:commons:maven"></conf-provider>
+    <conf-provider type="walkmod:commons:gradle"></conf-provider>
   </conf-providers>
   <chain name="main-chain">	
     <transformation type="...."/>
