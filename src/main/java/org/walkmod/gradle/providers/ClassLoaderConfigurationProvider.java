@@ -122,24 +122,12 @@ public class ClassLoaderConfigurationProvider implements ConfigurationProvider {
 			File gradleBuildDir = project.getGradleProject()
 					.getBuildDirectory();
 			File classesDir = new File(gradleBuildDir, buildDir);
-
-			for (EclipseSourceDirectory srcDir : project.getSourceDirectories()) {
-				File genDir = null;
-				File dir = srcDir.getDirectory();
-				if (dir.getName().equals("java")) {
-					File parent = dir.getParentFile();
-					genDir = new File(classesDir, parent.getName());
-
-				} else {
-					String path = dir.getAbsolutePath();
-					path = path.substring(gradleBuildDir.getAbsolutePath()
-							.length());
-					genDir = new File(classesDir, path);
+			
+			File[] files = classesDir.listFiles();
+			if(files != null){
+				for(File file: files){
+					classPathFiles.add(file);
 				}
-				if (genDir.exists()) {
-					classPathFiles.add(genDir);
-				}
-
 			}
 
 			for (ExternalDependency externalDependency : project.getClasspath()) {
