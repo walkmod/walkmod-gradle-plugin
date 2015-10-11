@@ -8,4 +8,7 @@
 
 	<alias name="org.walkmod:walkmod-gradle-plugin:classloader-provider"
 		alias="walkmod:commons:gradle" />
+		
+	<alias name="org.walkmod:walkmod-gradle-plugin:classloader-provider"
+		alias="org.walkmod:walkmod-gradle-plugin:gradle" />
 </beans>
