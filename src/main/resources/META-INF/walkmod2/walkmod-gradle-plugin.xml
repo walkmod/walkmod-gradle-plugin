@@ -3,6 +3,6 @@
    "http://www.springframework.org/dtd/spring-beans.dtd">
 
 <beans>
-    <bean id="org.walkmod:walkmod-maven-plugin:maven-initializer"
-        class="org.walkmod.maven.initializers.MavenInitializer"  />
+    <bean id="org.walkmod:walkmod-gradle-plugin:gradle-initializer"
+        class="org.walkmod.gradle.initializers.GradleInitializer"  />
 </beans>

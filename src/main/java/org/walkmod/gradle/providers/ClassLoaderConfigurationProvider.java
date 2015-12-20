@@ -118,8 +118,7 @@ public class ClassLoaderConfigurationProvider implements ConfigurationProvider {
 		try {
 			// Load the Eclipse model for the project
 			EclipseProject project = connection.getModel(EclipseProject.class);
-			File gradleBuildDir = project.getGradleProject()
-					.getBuildDirectory();
+			File gradleBuildDir = project.getGradleProject().getBuildDirectory();
 			File classesDir = new File(gradleBuildDir, buildDir);
 
 			File[] files = classesDir.listFiles();
@@ -150,22 +149,58 @@ public class ClassLoaderConfigurationProvider implements ConfigurationProvider {
 				throw new ConfigurationException(e1.getMessage());
 			}
 			List<File> classPathList = getClassPathFiles();
+			String[] bootPath = System.getProperties().get("sun.boot.class.path").toString()
+					.split(Character.toString(File.pathSeparatorChar));
+			URL[] classPath = new URL[classPathList.size() + bootPath.length];
+
+			int i = 0;
+			for (String lib : bootPath) {
+
+				try {
+					classPath[i] = new File(lib).toURI().toURL();
+				} catch (MalformedURLException e) {
+					throw new ConfigurationException("Invalid URL for the boot classpath entry " + lib, e.getCause());
+				}
+
+				i++;
+			}
+
 			if (!classPathList.isEmpty()) {
-				URL[] classPath = new URL[classPathList.size()];
-				int i = 0;
+
 				for (File entry : classPathList) {
 					try {
 						classPath[i] = entry.toURI().toURL();
 					} catch (MalformedURLException e) {
-						throw new ConfigurationException(
-								"Invalid URL for the dependency "
-										+ entry.getAbsolutePath(), e.getCause());
+						throw new ConfigurationException("Invalid URL for the dependency " + entry.getAbsolutePath(),
+								e.getCause());
 					}
 					i++;
 				}
-				URLClassLoader loader = new URLClassLoader(classPath);
-				configuration.getParameters().put("classLoader", loader);
+
 			}
+			URLClassLoader loader = new URLClassLoader(classPath) {
+				@Override
+				protected Class<?> loadClass(String name, boolean resolve) throws ClassNotFoundException {
+					Class<?> result = null;
+					try {
+						result = findClass(name);
+
+					} catch (Throwable e) {
+
+					}
+					if (result != null) {
+						return result;
+					}
+
+					return super.loadClass(name, resolve);
+				}
+
+				@Override
+				public Class<?> loadClass(String name) throws ClassNotFoundException {
+					return loadClass(name, false);
+				}
+			};
+			configuration.getParameters().put("classLoader", loader);
 
 		}
 	}
