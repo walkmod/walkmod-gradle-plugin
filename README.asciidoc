@@ -8,19 +8,16 @@ This is a walkmod plugin to load the classpath of a gradle project.
 
 == Usage
 
-. Add the https://github.com/rpau/walkmod-gradle-plugin[walkmod-gradle-plugin] into your `walkmod.xml` as a plugin. 
-This plugin will interpret your classpath accoding your `build.gradle` and will compile your code.
+. Add the https://github.com/rpau/walkmod-gradle-plugin[walkmod-gradle-plugin] into your `walkmod.xml` as a configuration provider. 
+This component will interpret your classpath accoding your `build.gradle` and will compile your code.
 
 . Add other Walkmod plugins and your transformations that depend on having the classpath resolved. 
 
 ```XML
-<!DOCTYPE walkmod PUBLIC "-//WALKMOD//DTD"  "http://www.walkmod.com/dtd/walkmod-1.0.dtd" >
+<!DOCTYPE walkmod PUBLIC "-//WALKMOD//DTD"  "http://www.walkmod.com/dtd/walkmod-1.1.dtd" >
 <walkmod>
-  <plugins>
-    <plugin groupId="org.walkmod" artifactId="walkmod-gradle-plugin" version="[1.0,)" />
-  </plugins>
   <conf-providers>
-    <conf-provider type="walkmod:commons:gradle"></conf-provider>
+    <conf-provider type="gradle"></conf-provider>
   </conf-providers>
   <chain name="main-chain">	
     <transformation type="...."/>
@@ -28,7 +25,7 @@ This plugin will interpret your classpath accoding your `build.gradle` and will 
 </walkmod>
 ```
 
-You can apply walkmod-imports-cleaner-plugin via walkmod. 
+You can apply walkmod-gradle-plugin via walkmod. 
 
   $ walkmod apply
 
