@@ -8,7 +8,7 @@ This is a walkmod plugin to load the classpath of a gradle project.
 
 == Usage
 
-===Walkmod >= 2.2.0
+=== Walkmod >= 2.2.0
 
 You don't need to do extra work to execute your plugins. However, you can force to execute it before executing any 
 code transformation with the following command.
@@ -16,7 +16,7 @@ code transformation with the following command.
 walkmod add-provider gradle
 ----
 
-===Older versions
+=== Older versions
 . Add the https://github.com/rpau/walkmod-gradle-plugin[walkmod-gradle-plugin] into your `walkmod.xml` as a configuration provider. 
 This component will interpret your classpath accoding your `build.gradle` and will compile your code.
 
