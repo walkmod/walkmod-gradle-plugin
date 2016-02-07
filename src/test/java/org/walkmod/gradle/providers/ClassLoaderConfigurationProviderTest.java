@@ -23,33 +23,32 @@ import org.junit.Test;
 import org.walkmod.conf.entities.impl.ConfigurationImpl;
 
 public class ClassLoaderConfigurationProviderTest {
-	
-	
-	@Test
-	public void testResolveShouldCompile() throws Exception {
-		ClassLoaderConfigurationProvider prov = new ClassLoaderConfigurationProvider();
-		prov.setWorkingDirectory("src/test/resources/project-sample");
-		prov.compile();
-	}
-	
-	@Test
-	public void testResolveShouldRetrieveGradleDependencies() throws Exception {
-		ClassLoaderConfigurationProvider prov = new ClassLoaderConfigurationProvider();
-		prov.setWorkingDirectory("src/test/resources/project-sample");
-		List<File> classPath = prov.getClassPathFiles();
-		Assert.assertTrue(classPath.size() > 0);
-	}
-	
-	@Test
-	public void testConfigurationUpdate() throws Exception{
-		ClassLoaderConfigurationProvider prov = new ClassLoaderConfigurationProvider();
-		prov.setWorkingDirectory("src/test/resources/project-sample");
-		ConfigurationImpl conf = new ConfigurationImpl();
-		prov.init(conf);
-		prov.load();
-		ClassLoader cl = (ClassLoader)conf.getParameters().get("classLoader");
-		Assert.assertNotNull(cl);
-		cl.loadClass("org.gradle.sample.Main");
-	}
+
+   @Test
+   public void testResolveShouldCompile() throws Exception {
+      ClassLoaderConfigurationProvider prov = new ClassLoaderConfigurationProvider();
+      prov.setWorkingDirectory("src/test/resources/project-sample");
+      prov.compile();
+   }
+
+   @Test
+   public void testResolveShouldRetrieveGradleDependencies() throws Exception {
+      ClassLoaderConfigurationProvider prov = new ClassLoaderConfigurationProvider();
+      prov.setWorkingDirectory("src/test/resources/project-sample");
+      List<File> classPath = prov.getClassPathFiles();
+      Assert.assertTrue(classPath.size() > 0);
+   }
+
+   @Test
+   public void testConfigurationUpdate() throws Exception {
+      ClassLoaderConfigurationProvider prov = new ClassLoaderConfigurationProvider();
+      prov.setWorkingDirectory("src/test/resources/project-sample");
+      ConfigurationImpl conf = new ConfigurationImpl();
+      prov.init(conf);
+      prov.load();
+      ClassLoader cl = (ClassLoader) conf.getParameters().get("classLoader");
+      Assert.assertNotNull(cl);
+      cl.loadClass("org.gradle.sample.Main");
+   }
 
 }
