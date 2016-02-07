@@ -16,6 +16,7 @@ along with Walkmod.  If not, see <http://www.gnu.org/licenses/>.*/
 package org.walkmod.gradle.providers;
 
 import java.io.File;
+import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLClassLoader;
@@ -79,7 +80,7 @@ public class ClassLoaderConfigurationProvider implements ConfigurationProvider {
 		this.configuration = configuration;
 	}
 
-	public GradleConnector getConnector() {
+	public GradleConnector getConnector() throws ConfigurationException {
 		if (connector == null) {
 			connector = GradleConnector.newConnector();
 			if (installationDir != null) {
@@ -87,6 +88,13 @@ public class ClassLoaderConfigurationProvider implements ConfigurationProvider {
 				if (userHomeDir != null) {
 					connector.useGradleUserHomeDir(new File(userHomeDir));
 				}
+			}
+			if(workingDirectory == null){
+			   try {
+               workingDirectory = new File(".").getCanonicalPath();
+            } catch (IOException e) {
+               throw new ConfigurationException("Error resolving the working directory", e.getCause());
+            }
 			}
 
 			connector.forProjectDirectory(new File(workingDirectory));
@@ -100,7 +108,7 @@ public class ClassLoaderConfigurationProvider implements ConfigurationProvider {
 		try {
 			// Configure the build
 			BuildLauncher launcher = connection.newBuild();
-			launcher.forTasks("compileJava", "compileTestJava");
+			launcher.forTasks("assemble");
 			launcher.setStandardOutput(System.out);
 			launcher.setStandardError(System.err);
 
@@ -112,7 +120,7 @@ public class ClassLoaderConfigurationProvider implements ConfigurationProvider {
 		}
 	}
 
-	public List<File> getClassPathFiles() {
+	public List<File> getClassPathFiles() throws ConfigurationException {
 		ProjectConnection connection = getConnector().connect();
 		List<File> classPathFiles = new LinkedList<File>();
 		try {
@@ -146,7 +154,7 @@ public class ClassLoaderConfigurationProvider implements ConfigurationProvider {
 			try {
 				compile();
 			} catch (Exception e1) {
-				throw new ConfigurationException(e1.getMessage());
+				throw new ConfigurationException("Error compiling the project", e1.getCause());
 			}
 			List<File> classPathList = getClassPathFiles();
 			String[] bootPath = System.getProperties().get("sun.boot.class.path").toString()
