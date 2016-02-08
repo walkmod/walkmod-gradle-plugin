@@ -21,18 +21,26 @@ import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLClassLoader;
+import java.util.Collection;
+import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 
+import org.apache.commons.io.FileUtils;
+import org.apache.ivy.Ivy;
+import org.apache.ivy.core.IvyPatternHelper;
+import org.apache.ivy.core.cache.DefaultResolutionCacheManager;
+import org.apache.ivy.core.module.descriptor.DefaultModuleDescriptor;
+import org.apache.ivy.core.module.id.ModuleRevisionId;
+import org.apache.ivy.core.report.ArtifactDownloadReport;
+import org.apache.ivy.core.report.ResolveReport;
+import org.apache.ivy.core.resolve.ResolveOptions;
+import org.apache.ivy.core.settings.IvySettings;
 import org.gradle.tooling.BuildLauncher;
 import org.gradle.tooling.GradleConnector;
 import org.gradle.tooling.ProjectConnection;
 import org.gradle.tooling.model.ExternalDependency;
 import org.gradle.tooling.model.eclipse.EclipseProject;
-import org.jboss.shrinkwrap.resolver.api.Resolvers;
-import org.jboss.shrinkwrap.resolver.api.maven.MavenResolvedArtifact;
-import org.jboss.shrinkwrap.resolver.api.maven.MavenResolverSystem;
-import org.jboss.shrinkwrap.resolver.impl.maven.MavenResolverSystemImpl;
 import org.walkmod.conf.ConfigurationException;
 import org.walkmod.conf.ConfigurationProvider;
 import org.walkmod.conf.entities.Configuration;
@@ -51,7 +59,15 @@ public class ClassLoaderConfigurationProvider implements ConfigurationProvider {
 
    private String workingDirectory;
 
+   private Ivy ivy = null;
+
+   private File ivyfile;
+
    private GradleConnector connector = null;
+
+   private ResolveOptions resolveOptions;
+
+   private DefaultModuleDescriptor md;
 
    public ClassLoaderConfigurationProvider() {
    }
@@ -92,6 +108,18 @@ public class ClassLoaderConfigurationProvider implements ConfigurationProvider {
             connector.useInstallation(new File(installationDir));
             if (userHomeDir != null) {
                connector.useGradleUserHomeDir(new File(userHomeDir));
+            } else {
+               try {
+                  userHomeDir = new File(System.getProperty("user.home"), ".gradle").getCanonicalPath();
+               } catch (IOException e) {
+                  throw new ConfigurationException("Error resolving the working directory", e.getCause());
+               }
+            }
+         } else {
+            try {
+               userHomeDir = new File(System.getProperty("user.home"), ".gradle").getCanonicalPath();
+            } catch (IOException e) {
+               throw new ConfigurationException("Error resolving the working directory", e.getCause());
             }
          }
          if (workingDirectory == null) {
@@ -125,6 +153,140 @@ public class ClassLoaderConfigurationProvider implements ConfigurationProvider {
       }
    }
 
+   private List<String> getDepsCoordinates(ProjectConnection connection) {
+      BuildLauncher launcher = connection.newBuild();
+      launcher.forTasks("dependencies");
+      ByteArrayOutputStream bos = new ByteArrayOutputStream();
+      launcher.setStandardOutput(bos);
+      launcher.setStandardError(System.err);
+      launcher.run();
+      String content = bos.toString();
+      String[] lines = content.split("\\n");
+      List<String> coordinates = new LinkedList<String>();
+      for (int i = 0; i < lines.length; i++) {
+         if (lines[i].startsWith("compile") || lines[i].startsWith("provided")) {
+            if (i + 1 < lines.length && !lines[i + 1].startsWith("No dependencies")) {
+               int j = i + 1;
+               String prefix = null;
+               String nextGoal = "debugApk";
+               if (lines[i].startsWith("provided")) {
+                  nextGoal = "releaseApk";
+               }
+               while (!lines[j].startsWith(nextGoal)) {
+                  int index = lines[j].lastIndexOf("--");
+                  if (index != -1) {
+                     prefix = lines[j].substring(0, index + 2);
+
+                     if (lines[j].length() > prefix.length()) {
+
+                        String artifact = lines[j].substring(prefix.length()).trim();
+                        if (!artifact.endsWith("(*)")) {
+                           int dynamicVersionIndex = artifact.indexOf("->");
+                           if(dynamicVersionIndex != -1){
+                              String artifactName = artifact.substring(0, artifact.lastIndexOf(":")).trim();
+                              String version = artifact.substring(dynamicVersionIndex+2).trim();
+                              artifact = artifactName+":"+version;
+                           }
+                           coordinates.add(artifact);
+                        }
+                       
+                     }
+                  }
+                  j++;
+               }
+
+            }
+         }
+      }
+      return coordinates;
+   }
+
+   private Integer getMinAndroidSDKVersion(File projectDir) {
+      File cfg = new File(projectDir, "build.gradle");
+      Integer version = null;
+      try {
+         List<String> cfgContent = FileUtils.readLines(cfg);
+         Iterator<String> it = cfgContent.iterator();
+         while (it.hasNext() && version == null) {
+            String line = it.next();
+            int index = line.indexOf("minSdkVersion ");
+            if (index != -1) {
+
+               version = Integer.parseInt(line.substring(index + "minSdkVersion ".length()).trim());
+            }
+         }
+
+      } catch (IOException e) {
+         throw new ConfigurationException("Error reading the build.gradle", e.getCause());
+      }
+      return version;
+   }
+
+   private File getAndroidJar(Integer version) {
+      String androidHome = System.getenv("ANDROID_HOME");
+      if (androidHome != null && !"".equals(androidHome)) {
+
+         File jarDir = new File(androidHome, "platforms/");
+
+         if (jarDir.exists()) {
+            Integer versionNumber = null;
+            File[] files = jarDir.listFiles();
+            for (int i = 0; i < files.length; i++) {
+               String fileName = files[i].getName();
+               if (fileName.startsWith("android-")) {
+                  try {
+                     Integer aux = Integer.parseInt(fileName.substring("android-".length()));
+                     if (aux > version) {
+                        if (versionNumber == null || versionNumber > aux) {
+                           versionNumber = aux;
+                        }
+                     }
+                  } catch (NumberFormatException e) {
+
+                  }
+               }
+            }
+            if (versionNumber != null) {
+               return (new File(new File(jarDir, "android-" + versionNumber), "android.jar"));
+            }
+         }
+      }
+      return null;
+   }
+
+   public void initIvy() throws ConfigurationException {
+      if (ivy == null) {
+         // creates clear ivy settings
+         IvySettings ivySettings = new IvySettings();
+         ivySettings.setDefaultCache(new File(userHomeDir, "caches/modules-2/files-2.1"));
+         DefaultResolutionCacheManager drcm = new DefaultResolutionCacheManager() {
+            public File getResolvedIvyFileInCache(ModuleRevisionId mrid) {
+               String file = IvyPatternHelper.substitute(getResolvedIvyPattern(), mrid.getOrganisation(),
+                     mrid.getName(), mrid.getRevision(), "ivy", "ivy", "xml");
+               File aux = new File(getResolutionCacheRoot(), file);
+               aux = new File(aux.getParentFile().listFiles()[0], "ivy.xml");
+
+               return aux;
+            }
+         };
+
+         try {
+            ivySettings.setResolutionCacheManager(drcm);
+            drcm.setBasedir(new File(userHomeDir, "caches/modules-2/metadata-2.16/descriptors").getCanonicalFile());
+            drcm.setResolvedIvyPattern("[organisation]/[module]/[revision]/ivy.xml");
+            ivy = Ivy.newInstance(ivySettings);
+            ivyfile = File.createTempFile("ivy", ".xml");
+         } catch (IOException e) {
+            throw new ConfigurationException("Error creating a tmp file", e);
+         }
+         ivyfile.deleteOnExit();
+
+         String[] confs = new String[] { "default" };
+         resolveOptions = new ResolveOptions().setConfs(confs);
+      }
+
+   }
+
    public List<File> getClassPathFiles() throws ConfigurationException {
       ProjectConnection connection = getConnector().connect();
       List<File> classPathFiles = new LinkedList<File>();
@@ -150,51 +312,19 @@ public class ClassLoaderConfigurationProvider implements ConfigurationProvider {
 
          if (isAndroid) {
 
-            BuildLauncher launcher = connection.newBuild();
-            launcher.forTasks("dependencies");
-            ByteArrayOutputStream bos = new ByteArrayOutputStream();
-            launcher.setStandardOutput(bos);
-            launcher.setStandardError(System.err);
+            List<String> coordinates = getDepsCoordinates(connection);
 
-            String content = bos.toString();
-            String[] lines = content.split("\\n");
-            List<String> coordinates = new LinkedList<String>();
-            for (int i = 0; i < lines.length; i++) {
-               if (lines[i].startsWith("compile") || lines[i].startsWith("provided")) {
-                  if (i + 1 < lines.length && !lines[i+1].startsWith("No dependencies")) {
-                     int j = i + 1;
-                     String prefix = null;
-                     String nextGoal = "debugApk";
-                     if(lines[i].startsWith("provided")){
-                        nextGoal = "releaseApk";
-                     }
-                     while (!lines[j].startsWith(nextGoal)) {
-                        if (prefix == null) {
-                           int index = lines[j].lastIndexOf("--");
-                           if (index != -1) {
-                              prefix = lines[j].substring(0, index + 1);
-                           }
-                        }
-                        coordinates.add(lines[j].substring(prefix.length()).trim());
-                     }
-                  }
+            Integer version = getMinAndroidSDKVersion(project.getGradleProject().getProjectDirectory());
+
+            if (version != null) {
+               File jar = getAndroidJar(version);
+               if (jar != null && jar.exists()) {
+                  classPathFiles.add(jar);
                }
             }
+
             if (!coordinates.isEmpty()) {
-
-               ClassLoader cl = Thread.currentThread().getContextClassLoader();
-               if (configuration.getClassLoader() != null) {
-                  cl = configuration.getClassLoader();
-               }
-
-               MavenResolverSystemImpl mrs = (MavenResolverSystemImpl) Resolvers.use(MavenResolverSystem.class, cl);
-               mrs.getMavenWorkingSession().setOffline(true);
-
-               MavenResolvedArtifact[] artifacts = mrs.resolve(coordinates).withTransitivity().asResolvedArtifact();
-               for (int i = 0; i < artifacts.length; i++) {
-                  classPathFiles.add(artifacts[i].asFile());
-               }
-
+               classPathFiles.addAll(resolveArtifacts(coordinates));
             }
          } else {
             for (ExternalDependency externalDependency : project.getClasspath()) {
@@ -207,6 +337,32 @@ public class ClassLoaderConfigurationProvider implements ConfigurationProvider {
          connection.close();
       }
       return classPathFiles;
+   }
+
+   public Collection<File> resolveArtifacts(List<String> coordinates) throws ConfigurationException {
+      Collection<File> result = new LinkedList<File>();
+      if (coordinates != null) {
+         File aux = new File(userHomeDir, "caches/modules-2/files-2.1");
+         for (String coordinate : coordinates) {
+            String[] parts = coordinate.split(":");
+            File groupIdDir = new File(aux, parts[0]);
+            File artifactIdDir = new File(groupIdDir, parts[1]);
+            File versionDir = new File(artifactIdDir, parts[2]);
+            File[] subdirs = versionDir.listFiles();
+            boolean found = false;
+            for (int i = 0; i < subdirs.length && !found; i++) {
+               File parentDir = subdirs[i];
+               if (parentDir.isDirectory()) {
+                  File file = new File(parentDir, parts[1] + "-" + parts[2] + ".jar");
+                  if (file.exists()) {
+                     result.add(file);
+                     found = true;
+                  }
+               }
+            }
+         }
+      }
+      return result;
    }
 
    @Override
