@@ -157,7 +157,7 @@ public class ClassLoaderConfigurationProvider implements ConfigurationProvider {
                if (lines[i].startsWith("provided")) {
                   nextGoal = "releaseApk";
                }
-               while (!lines[j].startsWith(nextGoal)) {
+               while (j < lines.length && !lines[j].startsWith(nextGoal)) {
                   int index = lines[j].lastIndexOf("--");
                   if (index != -1) {
                      prefix = lines[j].substring(0, index + 2);
