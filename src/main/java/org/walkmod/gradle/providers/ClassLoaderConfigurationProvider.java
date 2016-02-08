@@ -27,15 +27,6 @@ import java.util.LinkedList;
 import java.util.List;
 
 import org.apache.commons.io.FileUtils;
-import org.apache.ivy.Ivy;
-import org.apache.ivy.core.IvyPatternHelper;
-import org.apache.ivy.core.cache.DefaultResolutionCacheManager;
-import org.apache.ivy.core.module.descriptor.DefaultModuleDescriptor;
-import org.apache.ivy.core.module.id.ModuleRevisionId;
-import org.apache.ivy.core.report.ArtifactDownloadReport;
-import org.apache.ivy.core.report.ResolveReport;
-import org.apache.ivy.core.resolve.ResolveOptions;
-import org.apache.ivy.core.settings.IvySettings;
 import org.gradle.tooling.BuildLauncher;
 import org.gradle.tooling.GradleConnector;
 import org.gradle.tooling.ProjectConnection;
@@ -59,15 +50,9 @@ public class ClassLoaderConfigurationProvider implements ConfigurationProvider {
 
    private String workingDirectory;
 
-   private Ivy ivy = null;
-
-   private File ivyfile;
 
    private GradleConnector connector = null;
 
-   private ResolveOptions resolveOptions;
-
-   private DefaultModuleDescriptor md;
 
    public ClassLoaderConfigurationProvider() {
    }
@@ -254,38 +239,7 @@ public class ClassLoaderConfigurationProvider implements ConfigurationProvider {
       return null;
    }
 
-   public void initIvy() throws ConfigurationException {
-      if (ivy == null) {
-         // creates clear ivy settings
-         IvySettings ivySettings = new IvySettings();
-         ivySettings.setDefaultCache(new File(userHomeDir, "caches/modules-2/files-2.1"));
-         DefaultResolutionCacheManager drcm = new DefaultResolutionCacheManager() {
-            public File getResolvedIvyFileInCache(ModuleRevisionId mrid) {
-               String file = IvyPatternHelper.substitute(getResolvedIvyPattern(), mrid.getOrganisation(),
-                     mrid.getName(), mrid.getRevision(), "ivy", "ivy", "xml");
-               File aux = new File(getResolutionCacheRoot(), file);
-               aux = new File(aux.getParentFile().listFiles()[0], "ivy.xml");
-
-               return aux;
-            }
-         };
-
-         try {
-            ivySettings.setResolutionCacheManager(drcm);
-            drcm.setBasedir(new File(userHomeDir, "caches/modules-2/metadata-2.16/descriptors").getCanonicalFile());
-            drcm.setResolvedIvyPattern("[organisation]/[module]/[revision]/ivy.xml");
-            ivy = Ivy.newInstance(ivySettings);
-            ivyfile = File.createTempFile("ivy", ".xml");
-         } catch (IOException e) {
-            throw new ConfigurationException("Error creating a tmp file", e);
-         }
-         ivyfile.deleteOnExit();
-
-         String[] confs = new String[] { "default" };
-         resolveOptions = new ResolveOptions().setConfs(confs);
-      }
-
-   }
+   
 
    public List<File> getClassPathFiles() throws ConfigurationException {
       ProjectConnection connection = getConnector().connect();
