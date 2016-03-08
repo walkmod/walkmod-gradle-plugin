@@ -102,7 +102,7 @@
 			<url>http://repo.spring.io/libs-milestone/</url>
 		</repository>
 	</repositories>
-	<name>walkmod-maven-plugin</name>
+	<name>walkmod-gradle-plugin</name>
 	<scm>
 		<url>https://github.com/rpau/walkmod-gradle-plugin</url>
 		<connection>https://github.com/rpau/walkmod-gradle-plugin.git</connection>
