@@ -2,7 +2,7 @@ walkmod-gradle-plugin
 =====================
 Raquel Pau <raquelpau@gmail.com>
 
-image:https://travis-ci.org/rpau/walkmod-gradle-plugin.svg?branch=master["Build Status", link="https://travis-ci.org/rpau/walkmod-gradle-plugin"]
+image:https://travis-ci.org/walkmod/walkmod-gradle-plugin.svg?branch=master["Build Status", link="https://travis-ci.org/walkmod/walkmod-gradle-plugin"]
 
 This is a walkmod plugin to load the classpath of a gradle project.
 
