@@ -8,12 +8,18 @@ This is a walkmod plugin to load the classpath of a gradle project.
 
 == Usage
 
-=== Walkmod >= 2.2.0
+=== Walkmod >= 2.2.3
 
 You don't need to do extra work to execute your plugins. However, you can force to execute it before executing any 
 code transformation with the following command.
 ----
 walkmod add-provider gradle
+----
+
+If you have multiple gradle flavors, you need to specify which flavor is the valid one to use as the classpath of the project as follows:
+
+----
+walkmod add-provider -Dflavor="MYFLAVOR" gradle
 ----
 
 === Older versions

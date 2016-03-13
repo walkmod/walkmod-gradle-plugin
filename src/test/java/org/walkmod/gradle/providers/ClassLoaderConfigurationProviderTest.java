@@ -18,7 +18,9 @@ package org.walkmod.gradle.providers;
 import java.io.File;
 import java.util.List;
 
+import org.gradle.jarjar.org.apache.commons.io.FileUtils;
 import org.junit.Assert;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.walkmod.conf.entities.impl.ConfigurationImpl;
 
@@ -49,6 +51,25 @@ public class ClassLoaderConfigurationProviderTest {
       ClassLoader cl = (ClassLoader) conf.getParameters().get("classLoader");
       Assert.assertNotNull(cl);
       cl.loadClass("org.gradle.sample.Main");
+   }
+
+   @Ignore
+   public void testAndroid() throws Exception {
+
+      File workDir = new File("src/test/resources/flavors");
+      File androidHome = new File("/usr/local/opt/android-sdk");
+      if (androidHome.exists()) {
+         FileUtils.write(new File(workDir, "local.properties"), "sdk.dir="+androidHome+"");
+         ClassLoaderConfigurationProvider prov = new ClassLoaderConfigurationProvider();
+         prov.setWorkingDirectory("src/test/resources/flavors");
+         ConfigurationImpl conf = new ConfigurationImpl();
+         prov.setFlavor("pro");
+         prov.init(conf);
+         prov.load();
+         ClassLoader cl = (ClassLoader) conf.getParameters().get("classLoader");
+         Assert.assertNotNull(cl);
+         cl.loadClass("org.gradle.sample.Main");
+      }
    }
 
 }
