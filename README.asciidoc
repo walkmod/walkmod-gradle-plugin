@@ -22,6 +22,10 @@ If you have multiple gradle flavors, you need to specify which flavor is the val
 walkmod add-provider -Dflavor="MYFLAVOR" gradle
 ----
 
+In case of using local libraries (that do not belong to the maven local repo), you should specify them manually as follows:
+----
+walkmod add-provider -DlocalLibs="[\"libDir/\", \"lib2.jar\"]" gradle
+----
 === Older versions
 . Add the https://github.com/rpau/walkmod-gradle-plugin[walkmod-gradle-plugin] into your `walkmod.xml` as a configuration provider. 
 This component will interpret your classpath accoding your `build.gradle` and will compile your code.

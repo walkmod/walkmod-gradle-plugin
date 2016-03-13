@@ -15,6 +15,22 @@ You should have received a copy of the GNU Lesser General Public License
 along with Walkmod.  If not, see <http://www.gnu.org/licenses/>.*/
 package org.walkmod.gradle.providers;
 
+import java.io.BufferedOutputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.net.MalformedURLException;
+import java.net.URL;
+import java.net.URLClassLoader;
+import java.util.Collection;
+import java.util.Iterator;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipInputStream;
+
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang.StringUtils;
 import org.gradle.tooling.BuildLauncher;
@@ -26,16 +42,7 @@ import org.walkmod.conf.ConfigurationException;
 import org.walkmod.conf.ConfigurationProvider;
 import org.walkmod.conf.entities.Configuration;
 
-import java.io.*;
-import java.net.MalformedURLException;
-import java.net.URL;
-import java.net.URLClassLoader;
-import java.util.Collection;
-import java.util.Iterator;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.zip.ZipEntry;
-import java.util.zip.ZipInputStream;
+import com.alibaba.fastjson.JSONArray;
 
 public class ClassLoaderConfigurationProvider implements ConfigurationProvider {
 
@@ -56,8 +63,10 @@ public class ClassLoaderConfigurationProvider implements ConfigurationProvider {
    private String flavor = null;
 
    private GradleConnector connector = null;
-   
+
    private String gradleVersion = null;
+
+   private JSONArray localLibs = null;
 
    public ClassLoaderConfigurationProvider() {
    }
@@ -72,6 +81,10 @@ public class ClassLoaderConfigurationProvider implements ConfigurationProvider {
 
    public void setWorkingDirectory(String workingDirectory) {
       this.workingDirectory = workingDirectory;
+   }
+
+   public void setLocalLibs(JSONArray localLibs) {
+      this.localLibs = localLibs;
    }
 
    public void setBuildDir(String buildDir) {
@@ -89,8 +102,8 @@ public class ClassLoaderConfigurationProvider implements ConfigurationProvider {
    public void setPomFile(File file) {
       this.pomFile = file;
    }
-   
-   public void setGradleVersion(String gradleVersion){
+
+   public void setGradleVersion(String gradleVersion) {
       this.gradleVersion = gradleVersion;
    }
 
@@ -102,7 +115,7 @@ public class ClassLoaderConfigurationProvider implements ConfigurationProvider {
    public GradleConnector getConnector() throws ConfigurationException {
       if (connector == null) {
          connector = GradleConnector.newConnector();
-         if(gradleVersion != null){
+         if (gradleVersion != null) {
             connector.useGradleVersion(gradleVersion);
          }
          if (installationDir != null) {
@@ -289,15 +302,17 @@ public class ClassLoaderConfigurationProvider implements ConfigurationProvider {
             isAndroid = true;
             if (flavor == null) {
                classesDir = new File(gradleBuildDir, "intermediates/classes/release/");
-               if(!classesDir.exists()){
-                  throw new ConfigurationException("Please, select one flavour with the command: walkmod add-provider -Dflavor=\"YOUR_FLAVOR\" gradle");
+               if (!classesDir.exists()) {
+                  throw new ConfigurationException(
+                        "Please, select one flavour with the command: walkmod add-provider -Dflavor=\"YOUR_FLAVOR\" gradle");
                }
                classPathFiles.add(classesDir);
             } else {
 
                classesDir = new File(gradleBuildDir, "intermediates/classes/" + flavor + "/release/");
-               if(!classesDir.exists()){
-                  throw new ConfigurationException("The flavor :["+flavor+"] does not exist in ["+classesDir.getAbsolutePath()+"]. Please, select a valid one");
+               if (!classesDir.exists()) {
+                  throw new ConfigurationException("The flavor :[" + flavor + "] does not exist in ["
+                        + classesDir.getAbsolutePath() + "]. Please, select a valid one");
                }
                classPathFiles.add(classesDir);
             }
@@ -319,14 +334,23 @@ public class ClassLoaderConfigurationProvider implements ConfigurationProvider {
             if (!coordinates.isEmpty()) {
                classPathFiles.addAll(resolveArtifacts(coordinates));
             }
-
-            File auxLibs = new File("libs");
-            if (auxLibs.exists()) {
-               File[] files = auxLibs.listFiles();
-               for (File jar : files) {
-                  classPathFiles.add(jar);
+            if (localLibs != null) {
+               Iterator<Object> it = localLibs.iterator();
+               while (it.hasNext()) {
+                  File auxLibs = new File(it.next().toString());
+                  if (auxLibs.exists()) {
+                     if (auxLibs.isDirectory()) {
+                        File[] files = auxLibs.listFiles();
+                        for (File jar : files) {
+                           classPathFiles.add(jar);
+                        }
+                     } else {
+                        classPathFiles.add(auxLibs);
+                     }
+                  }
                }
             }
+
          } else {
             for (ExternalDependency externalDependency : project.getClasspath()) {
                classPathFiles.add(externalDependency.getFile());
