@@ -37,6 +37,9 @@ public class ClassLoaderConfigurationProviderTest {
    public void testResolveShouldRetrieveGradleDependencies() throws Exception {
       ClassLoaderConfigurationProvider prov = new ClassLoaderConfigurationProvider();
       prov.setWorkingDirectory("src/test/resources/project-sample");
+      ConfigurationImpl conf = new ConfigurationImpl();
+      prov.init(conf);
+      prov.load();
       List<File> classPath = prov.getClassPathFiles();
       Assert.assertTrue(classPath.size() > 0);
    }
