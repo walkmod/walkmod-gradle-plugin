@@ -335,9 +335,10 @@ public class ClassLoaderConfigurationProvider implements ConfigurationProvider {
                classPathFiles.addAll(resolveArtifacts(coordinates));
             }
             if (localLibs != null) {
+               try{
                Iterator<Object> it = localLibs.iterator();
                while (it.hasNext()) {
-                  File auxLibs = new File(it.next().toString());
+                  File auxLibs = new File(it.next().toString()).getCanonicalFile();
                   if (auxLibs.exists()) {
                      if (auxLibs.isDirectory()) {
                         File[] files = auxLibs.listFiles();
@@ -348,6 +349,9 @@ public class ClassLoaderConfigurationProvider implements ConfigurationProvider {
                         classPathFiles.add(auxLibs);
                      }
                   }
+               }
+               }catch(IOException e){
+                  throw new ConfigurationException("Error resolving the libs directories",e);
                }
             }
 
