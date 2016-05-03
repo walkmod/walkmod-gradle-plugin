@@ -270,7 +270,7 @@ public class ClassLoaderConfigurationProvider implements ConfigurationProvider {
                if (fileName.startsWith("android-")) {
                   try {
                      Integer aux = Integer.parseInt(fileName.substring("android-".length()));
-                     if (aux > version) {
+                     if (aux >= version) {
                         if (versionNumber == null || versionNumber > aux) {
                            versionNumber = aux;
                         }
