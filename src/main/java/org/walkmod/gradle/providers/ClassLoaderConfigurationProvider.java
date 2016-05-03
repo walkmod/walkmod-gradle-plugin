@@ -26,6 +26,7 @@ import java.net.URL;
 import java.net.URLClassLoader;
 import java.util.Collection;
 import java.util.Iterator;
+import java.util.LinkedHashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.zip.ZipEntry;
@@ -36,8 +37,10 @@ import org.apache.commons.lang.StringUtils;
 import org.gradle.tooling.BuildLauncher;
 import org.gradle.tooling.GradleConnector;
 import org.gradle.tooling.ProjectConnection;
+import org.gradle.tooling.model.DomainObjectSet;
 import org.gradle.tooling.model.ExternalDependency;
 import org.gradle.tooling.model.eclipse.EclipseProject;
+import org.gradle.tooling.model.eclipse.EclipseProjectDependency;
 import org.walkmod.conf.ConfigurationException;
 import org.walkmod.conf.ConfigurationProvider;
 import org.walkmod.conf.entities.Configuration;
@@ -89,6 +92,10 @@ public class ClassLoaderConfigurationProvider implements ConfigurationProvider {
 
    public void setBuildDir(String buildDir) {
       this.buildDir = buildDir;
+   }
+
+   public String getBuildDir() {
+      return buildDir;
    }
 
    public void setFlavor(String flavor) {
@@ -283,7 +290,7 @@ public class ClassLoaderConfigurationProvider implements ConfigurationProvider {
 
    public List<File> getClassPathFiles() throws ConfigurationException {
       ProjectConnection connection = getConnector().connect();
-      List<File> classPathFiles = new LinkedList<File>();
+      LinkedHashSet<File> classPathFiles = new LinkedHashSet<File>();
       try {
          // Load the Eclipse model for the project
          EclipseProject project = connection.getModel(EclipseProject.class);
@@ -335,23 +342,23 @@ public class ClassLoaderConfigurationProvider implements ConfigurationProvider {
                classPathFiles.addAll(resolveArtifacts(coordinates));
             }
             if (localLibs != null) {
-               try{
-               Iterator<Object> it = localLibs.iterator();
-               while (it.hasNext()) {
-                  File auxLibs = new File(it.next().toString()).getCanonicalFile();
-                  if (auxLibs.exists()) {
-                     if (auxLibs.isDirectory()) {
-                        File[] files = auxLibs.listFiles();
-                        for (File jar : files) {
-                           classPathFiles.add(jar);
+               try {
+                  Iterator<Object> it = localLibs.iterator();
+                  while (it.hasNext()) {
+                     File auxLibs = new File(it.next().toString()).getCanonicalFile();
+                     if (auxLibs.exists()) {
+                        if (auxLibs.isDirectory()) {
+                           File[] files = auxLibs.listFiles();
+                           for (File jar : files) {
+                              classPathFiles.add(jar);
+                           }
+                        } else {
+                           classPathFiles.add(auxLibs);
                         }
-                     } else {
-                        classPathFiles.add(auxLibs);
                      }
                   }
-               }
-               }catch(IOException e){
-                  throw new ConfigurationException("Error resolving the libs directories",e);
+               } catch (IOException e) {
+                  throw new ConfigurationException("Error resolving the libs directories", e);
                }
             }
 
@@ -359,13 +366,25 @@ public class ClassLoaderConfigurationProvider implements ConfigurationProvider {
             for (ExternalDependency externalDependency : project.getClasspath()) {
                classPathFiles.add(externalDependency.getFile());
             }
+
+            DomainObjectSet<? extends EclipseProjectDependency> modules = project.getProjectDependencies();
+            if (modules != null) {
+               Iterator<? extends EclipseProjectDependency> it = modules.iterator();
+               while (it.hasNext()) {
+                  EclipseProjectDependency current = it.next();
+                  ClassLoaderConfigurationProvider prov = new ClassLoaderConfigurationProvider();
+                  prov.setWorkingDirectory(current.getTargetProject().getProjectDirectory().getAbsolutePath());
+                  classPathFiles.addAll(prov.getClassPathFiles());
+               }
+            }
+
          }
 
       } finally {
          // Clean up
          connection.close();
       }
-      return classPathFiles;
+      return new LinkedList<File>(classPathFiles);
    }
 
    private void unzipAAR(String zipFilePath, String destDirectory) throws IOException {
