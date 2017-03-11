@@ -41,7 +41,7 @@ import com.alibaba.fastjson.JSONArray;
 
 public class ClassLoaderConfigurationProvider implements ConfigurationProvider {
 
-    private File pomFile = null;
+    private File buildFile = null;
 
     private String buildDir = "classes";
 
@@ -94,12 +94,12 @@ public class ClassLoaderConfigurationProvider implements ConfigurationProvider {
         this.flavor = flavor;
     }
 
-    public File getPomFile() {
-        return pomFile;
+    public File getBuildFile() {
+        return buildFile;
     }
 
-    public void setPomFile(File file) {
-        this.pomFile = file;
+    public void setBuildFile(File file) {
+        this.buildFile = file;
     }
 
     public void setGradleVersion(String gradleVersion) {
@@ -159,6 +159,9 @@ public class ClassLoaderConfigurationProvider implements ConfigurationProvider {
             } else {
                 launcher.forTasks(task);
             }
+            if (buildFile != null) {
+                launcher.withArguments("-b", buildFile.getAbsolutePath());
+            }
             launcher.setStandardOutput(System.out);
             launcher.setStandardError(System.err);
 
@@ -168,7 +171,7 @@ public class ClassLoaderConfigurationProvider implements ConfigurationProvider {
             // Clean up
             connection.close();
         }
-    }   
+    }
 
     public List<File> getClassPathFiles() throws ConfigurationException {
         ProjectConnection connection = getConnector().connect();
@@ -209,7 +212,7 @@ public class ClassLoaderConfigurationProvider implements ConfigurationProvider {
 
             if (isAndroid) {
                 GradleUtils utils = new GradleUtils();
-                List<String> coordinates = utils.getDepsCoordinates(connection);
+                List<String> coordinates = utils.getDepsCoordinates(connection, buildFile);
               
                 Integer version = utils.getCompileAndroidSDKVersion(project.getGradleProject().getProjectDirectory());
 
