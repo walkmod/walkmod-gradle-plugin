@@ -28,9 +28,11 @@ import java.util.List;
 import org.apache.commons.lang.StringUtils;
 import org.gradle.tooling.BuildLauncher;
 import org.gradle.tooling.GradleConnector;
+import org.gradle.tooling.ModelBuilder;
 import org.gradle.tooling.ProjectConnection;
 import org.gradle.tooling.model.DomainObjectSet;
 import org.gradle.tooling.model.ExternalDependency;
+import org.gradle.tooling.model.GradleProject;
 import org.gradle.tooling.model.eclipse.EclipseProject;
 import org.gradle.tooling.model.eclipse.EclipseProjectDependency;
 import org.walkmod.conf.ConfigurationException;
@@ -178,8 +180,13 @@ public class ClassLoaderConfigurationProvider implements ConfigurationProvider {
         LinkedHashSet<File> classPathFiles = new LinkedHashSet<File>();
         try {
             // Load the Eclipse model for the project
-            EclipseProject project = connection.getModel(EclipseProject.class);
-            File gradleBuildDir = project.getGradleProject().getBuildDirectory();
+            final ModelBuilder<EclipseProject> modelBuilder = connection.model(EclipseProject.class);
+            if (buildFile != null) {
+                modelBuilder.withArguments("-b", buildFile.getAbsolutePath());
+            }
+            EclipseProject project = modelBuilder.get();
+            final GradleProject gradleProject = project.getGradleProject();
+            File gradleBuildDir = gradleProject.getBuildDirectory();
             File classesDir = new File(gradleBuildDir, buildDir);
             boolean isAndroid = false;
 
@@ -214,7 +221,7 @@ public class ClassLoaderConfigurationProvider implements ConfigurationProvider {
                 GradleUtils utils = new GradleUtils();
                 List<String> coordinates = utils.getDepsCoordinates(connection, buildFile);
               
-                Integer version = utils.getCompileAndroidSDKVersion(project.getGradleProject().getProjectDirectory());
+                Integer version = utils.getCompileAndroidSDKVersion(gradleProject.getProjectDirectory());
 
                 if (version != null) {
                     File jar = utils.getAndroidJar(version);
