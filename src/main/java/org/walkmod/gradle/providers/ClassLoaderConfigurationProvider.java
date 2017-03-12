@@ -28,9 +28,11 @@ import java.util.List;
 import org.apache.commons.lang.StringUtils;
 import org.gradle.tooling.BuildLauncher;
 import org.gradle.tooling.GradleConnector;
+import org.gradle.tooling.ModelBuilder;
 import org.gradle.tooling.ProjectConnection;
 import org.gradle.tooling.model.DomainObjectSet;
 import org.gradle.tooling.model.ExternalDependency;
+import org.gradle.tooling.model.GradleProject;
 import org.gradle.tooling.model.eclipse.EclipseProject;
 import org.gradle.tooling.model.eclipse.EclipseProjectDependency;
 import org.walkmod.conf.ConfigurationException;
@@ -41,7 +43,7 @@ import com.alibaba.fastjson.JSONArray;
 
 public class ClassLoaderConfigurationProvider implements ConfigurationProvider {
 
-    private File pomFile = null;
+    private File buildFile = null;
 
     private String buildDir = "classes";
 
@@ -94,12 +96,12 @@ public class ClassLoaderConfigurationProvider implements ConfigurationProvider {
         this.flavor = flavor;
     }
 
-    public File getPomFile() {
-        return pomFile;
+    public File getBuildFile() {
+        return buildFile;
     }
 
-    public void setPomFile(File file) {
-        this.pomFile = file;
+    public void setBuildFile(File file) {
+        this.buildFile = file;
     }
 
     public void setGradleVersion(String gradleVersion) {
@@ -159,6 +161,9 @@ public class ClassLoaderConfigurationProvider implements ConfigurationProvider {
             } else {
                 launcher.forTasks(task);
             }
+            if (buildFile != null) {
+                launcher.withArguments("-b", buildFile.getAbsolutePath());
+            }
             launcher.setStandardOutput(System.out);
             launcher.setStandardError(System.err);
 
@@ -168,15 +173,20 @@ public class ClassLoaderConfigurationProvider implements ConfigurationProvider {
             // Clean up
             connection.close();
         }
-    }   
+    }
 
     public List<File> getClassPathFiles() throws ConfigurationException {
         ProjectConnection connection = getConnector().connect();
         LinkedHashSet<File> classPathFiles = new LinkedHashSet<File>();
         try {
             // Load the Eclipse model for the project
-            EclipseProject project = connection.getModel(EclipseProject.class);
-            File gradleBuildDir = project.getGradleProject().getBuildDirectory();
+            final ModelBuilder<EclipseProject> modelBuilder = connection.model(EclipseProject.class);
+            if (buildFile != null) {
+                modelBuilder.withArguments("-b", buildFile.getAbsolutePath());
+            }
+            EclipseProject project = modelBuilder.get();
+            final GradleProject gradleProject = project.getGradleProject();
+            File gradleBuildDir = gradleProject.getBuildDirectory();
             File classesDir = new File(gradleBuildDir, buildDir);
             boolean isAndroid = false;
 
@@ -209,9 +219,9 @@ public class ClassLoaderConfigurationProvider implements ConfigurationProvider {
 
             if (isAndroid) {
                 GradleUtils utils = new GradleUtils();
-                List<String> coordinates = utils.getDepsCoordinates(connection);
+                List<String> coordinates = utils.getDepsCoordinates(connection, buildFile);
               
-                Integer version = utils.getCompileAndroidSDKVersion(project.getGradleProject().getProjectDirectory());
+                Integer version = utils.getCompileAndroidSDKVersion(gradleProject.getProjectDirectory());
 
                 if (version != null) {
                     File jar = utils.getAndroidJar(version);

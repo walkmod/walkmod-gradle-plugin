@@ -70,8 +70,11 @@ public class GradleUtils {
     }
     
     
-    public List<String> getDepsCoordinates(ProjectConnection connection) {
+    public List<String> getDepsCoordinates(ProjectConnection connection, File buildFile) {
         BuildLauncher launcher = connection.newBuild();
+        if (buildFile != null) {
+            launcher.withArguments("-b", buildFile.getAbsolutePath());
+        }
         launcher.forTasks("dependencies");
         ByteArrayOutputStream bos = new ByteArrayOutputStream();
         launcher.setStandardOutput(bos);
