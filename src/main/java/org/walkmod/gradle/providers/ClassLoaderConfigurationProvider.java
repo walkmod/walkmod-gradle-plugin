@@ -38,6 +38,7 @@ import org.gradle.tooling.model.eclipse.EclipseProjectDependency;
 import org.walkmod.conf.ConfigurationException;
 import org.walkmod.conf.ConfigurationProvider;
 import org.walkmod.conf.entities.Configuration;
+import org.gradle.tooling.GradleConnectionException;
 
 import com.alibaba.fastjson.JSONArray;
 
@@ -181,12 +182,24 @@ public class ClassLoaderConfigurationProvider implements ConfigurationProvider {
         try {
             // Load the Eclipse model for the project
             final ModelBuilder<EclipseProject> modelBuilder = connection.model(EclipseProject.class);
+            EclipseProject project = null;
+             GradleProject gradleProject = null;
             if (buildFile != null) {
                 modelBuilder.withArguments("-b", buildFile.getAbsolutePath());
+
+
             }
-            EclipseProject project = modelBuilder.get();
-            final GradleProject gradleProject = project.getGradleProject();
+
+            try {
+                project =  project = modelBuilder.get();
+                gradleProject = project.getGradleProject();
+            }catch(GradleConnectionException e){
+                gradleProject = connection.getModel(GradleProject.class);
+
+            }
+
             File gradleBuildDir = gradleProject.getBuildDirectory();
+            File projectDir = gradleProject.getProjectDirectory();
             File classesDir = new File(gradleBuildDir, buildDir);
             boolean isAndroid = false;
 
@@ -221,7 +234,7 @@ public class ClassLoaderConfigurationProvider implements ConfigurationProvider {
                 GradleUtils utils = new GradleUtils();
                 List<String> coordinates = utils.getDepsCoordinates(connection, buildFile);
               
-                Integer version = utils.getCompileAndroidSDKVersion(gradleProject.getProjectDirectory());
+                Integer version = utils.getCompileAndroidSDKVersion(projectDir);
 
                 if (version != null) {
                     File jar = utils.getAndroidJar(version);
@@ -255,18 +268,20 @@ public class ClassLoaderConfigurationProvider implements ConfigurationProvider {
                 }
 
             } else {
-                for (ExternalDependency externalDependency : project.getClasspath()) {
-                    classPathFiles.add(externalDependency.getFile());
-                }
+                if(project != null) {
+                    for (ExternalDependency externalDependency : project.getClasspath()) {
+                        classPathFiles.add(externalDependency.getFile());
+                    }
 
-                DomainObjectSet<? extends EclipseProjectDependency> modules = project.getProjectDependencies();
-                if (modules != null) {
-                    Iterator<? extends EclipseProjectDependency> it = modules.iterator();
-                    while (it.hasNext()) {
-                        EclipseProjectDependency current = it.next();
-                        ClassLoaderConfigurationProvider prov = new ClassLoaderConfigurationProvider();
-                        prov.setWorkingDirectory(current.getTargetProject().getProjectDirectory().getAbsolutePath());
-                        classPathFiles.addAll(prov.getClassPathFiles());
+                    DomainObjectSet<? extends EclipseProjectDependency> modules = project.getProjectDependencies();
+                    if (modules != null) {
+                        Iterator<? extends EclipseProjectDependency> it = modules.iterator();
+                        while (it.hasNext()) {
+                            EclipseProjectDependency current = it.next();
+                            ClassLoaderConfigurationProvider prov = new ClassLoaderConfigurationProvider();
+                            prov.setWorkingDirectory(current.getTargetProject().getProjectDirectory().getAbsolutePath());
+                            classPathFiles.addAll(prov.getClassPathFiles());
+                        }
                     }
                 }
 
